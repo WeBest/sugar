@@ -28,8 +28,8 @@ var MyComponent = sugar.Component.extend({
 		});
 		this.Super('init', arguments);
 	},
-	viewReady: function() {
-		// 组件的视图渲染完毕后会立即调用 viewReady 方法
+	afterRender: function() {
+		// 组件的视图渲染完毕后会立即调用 afterRender 方法
 		// 通常在这里开始组件的业务逻辑
 		this.doMyBusiness();
 	},

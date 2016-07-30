@@ -39,7 +39,7 @@ var Page = sugar.Component.extend({
 			// 元素的 attr
 			'attr'    : null,
 			// 视图布局内容
-			'html'    : '',
+			'view'    : '',
 			// 视图模板拉取地址
 			'template': '',
 			// 模板拉取请求参数
@@ -47,7 +47,7 @@ var Page = sugar.Component.extend({
 			// mvvm 数据模型对象
 			'model'   : null,
 			// 视图渲染完成后的回调函数
-			'cbRender': 'viewReady'
+			'cbRender': 'afterRender'
 		});
 		// 调用父类 (sugar.Component) 的 init 方法来完成视图的渲染
 		this.Super('init', arguments);
@@ -91,8 +91,8 @@ var Page = sugar.Component.extend({
 		init: function() {
 			// ...
 		},
-		// 每个视图组件渲染完成之后默认调用 viewReady 方法
-		viewReady: function() {
+		// 每个视图组件渲染完成之后默认调用 afterRender 方法
+		afterRender: function() {
 			// 创建 SubPage 到当前视图容器
 			this.create('subpage', SubPage, {
 				'target': this.el
@@ -149,15 +149,15 @@ var Page = sugar.Component.extend({
 		```javascript
 		// 定义 header 视图组件
 		var Header = sugar.Component.extend({
-			// viewReady 为每个视图组件创建完毕后默认调用的方法
-			viewReady: function() {
+			// afterRender 为每个视图组件创建完毕后默认调用的方法
+			afterRender: function() {
 				var parent = this.getParent(); // => Page实例
 			}
 		});
 
 		// 定义页面视图组件
 		var Page = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				// 创建头部模块
 				this.create('header', Header, {
 					// 创建header模块的配置参数
@@ -190,7 +190,7 @@ var Page = sugar.Component.extend({
 
 		// 定义页面视图组件
 		var Page = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				// 创建头部模块
 				this.create('header', Header, {
 					// 创建header模块的配置参数
@@ -224,7 +224,7 @@ var Page = sugar.Component.extend({
 
 		// 定义页面模块类
 		var Page = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				// 创建三个子模块
 				this.create('header', Header);
 				this.create('footer', Footer);
@@ -259,7 +259,7 @@ var Page = sugar.Component.extend({
 	* 用法示例：
 		```javascript
 		var Page = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				this.$name = 'SUGAR';
 
 				this.setTimeout(function() {
@@ -290,7 +290,7 @@ var Page = sugar.Component.extend({
 		```javascript
 		// 定义导航视图组件
 		var Nav = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				// 向父模块发送消息，将会冒泡到每一层父模块
 				this.fire('navCreated', 123);
 			},
@@ -303,7 +303,7 @@ var Page = sugar.Component.extend({
 
 		// 定义 Header 视图组件
 		var Header = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				// 创建导航
 				this.create('nav', Nav);
 			},
@@ -316,7 +316,7 @@ var Page = sugar.Component.extend({
 
 		// 定义 Page 模块
 		var Page = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				// 创建头部模块
 				this.create('header', Header);
 			},
@@ -362,7 +362,7 @@ var Page = sugar.Component.extend({
 
 		// 定义 Header 子模块
 		var Header = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				// 创建导航
 				this.create('nav', Nav);
 				// 创建 LOGO
@@ -377,7 +377,7 @@ var Page = sugar.Component.extend({
 
 		// 定义 Page 模块
 		var Page = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				// 创建头部模块
 				this.create('header', Header);
 
@@ -412,7 +412,7 @@ var Page = sugar.Component.extend({
 	* 用法示例：
 		```javascript
 		var PageA = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				this.notify('page_b', 'helloFromA', 'Are you ok?');
 			}
 		});
@@ -494,7 +494,7 @@ Component 类继承于 Module 类，所以 Component 的实例也有基础模块
 
 	* 返回值：无
 
-	* 特殊说明：init 方法的作用是定义整个视图组件的初始状态、配置参数、MVVM 视图层初始化的，不建议在 init 方法里面含有任何业务逻辑的代码（虽然可以有）。视图组件在被创建成实例之后会默认调用 init 方法（详见 Module 的 create 方法实现）， init 方法会根据配置参数进行视图布局的渲染，在渲染完成后会调用 cbRender 参数指定的方法（默认为 viewReady ），业务逻辑比如事件绑定、数据加载等建议在 viewReady 中处理
+	* 特殊说明：init 方法的作用是定义整个视图组件的初始状态、配置参数、MVVM 视图层初始化的，不建议在 init 方法里面含有任何业务逻辑的代码（虽然可以有）。视图组件在被创建成实例之后会默认调用 init 方法（详见 Module 的 create 方法实现）， init 方法会根据配置参数进行视图布局的渲染，在渲染完成后会调用 cbRender 参数指定的方法（默认为 afterRender ），业务逻辑比如事件绑定、数据加载等建议在 afterRender 中处理
 
 	* 用法示例：
 		```javascript
@@ -506,7 +506,7 @@ Component 类继承于 Module 类，所以 Component 的实例也有基础模块
 					'target'  : document.querySelector('body'), // 模块插入的目标容器
 					'class'   : 'page-main',
 					'tag'     : 'div',
-					'html'    : 'I am page main',
+					'view'    : 'I am page main',
 					'cbRender': 'afterRender'
 				});
 
@@ -532,7 +532,7 @@ Component 类继承于 Module 类，所以 Component 的实例也有基础模块
 		// page2 的 DOM 呈现为：<p class="page2-main">I am page main</p>
 
 		var page3 = sugar.core.create('page3', Page, {
-			'html': 'I am page3'
+			'view': 'I am page3'
 		});
 		// page3 的 DOM 呈现为：<div class="page-main">I am page3</div>
 
@@ -560,16 +560,16 @@ Component 类继承于 Module 类，所以 Component 的实例也有基础模块
 					'target': document.querySelector('body')
 					'class' : 'page-main',
 					'tag'   : 'b',
-					'html'  : 'I am a page'
+					'view'  : 'I am a page'
 				});
 				this.Super('init', arguments);
 			},
-			viewReady: function() {
-				var html = this.getConfig('html');
+			afterRender: function() {
+				var html = this.getConfig('view');
 				// 'I am a page'
 
 				var cfg = this.getConfig();
-				// {'class': 'page-main', 'tag': 'b', 'html': 'I am a page'}
+				// {'class': 'page-main', 'tag': 'b', 'view': 'I am a page'}
 			}
 		});
 		```
@@ -593,16 +593,16 @@ Component 类继承于 Module 类，所以 Component 的实例也有基础模块
 					'target': document.querySelector('body')
 					'class' : 'page-main',
 					'tag'   : 'b',
-					'html'  : 'I am a page'
+					'view'  : 'I am a page'
 				});
 				this.Super('init', arguments);
 			},
-			viewReady: function() {
-				var html = this.getConfig('html'); // 'I am a page'
+			afterRender: function() {
+				var html = this.getConfig('view'); // 'I am a page'
 
-				this.setConfig('html', 'I change my mind');
+				this.setConfig('view', 'I change my mind');
 
-				html = this.getConfig('html'); // 'I change my mind'
+				html = this.getConfig('view'); // 'I change my mind'
 			}
 		});
 		```
@@ -626,11 +626,11 @@ Component 类继承于 Module 类，所以 Component 的实例也有基础模块
 					'target': document.querySelector('body')
 					'class' : 'page',
 					'tag'   : 'p',
-					'html'  : '<div class="header"><div class="nav"></div></div>'
+					'view'  : '<div class="header"><div class="nav"></div></div>'
 				});
 				this.Super('init', arguments);
 			},
-			viewReady: function() {
+			afterRender: function() {
 				var dom = this.el; // <p class="page">……</p>
 				var nav = this.query('.nav'); // <div class="nav"></div>
 			}
@@ -674,7 +674,7 @@ Component 类继承于 Module 类，所以 Component 的实例也有基础模块
 	* 用法示例：
 		```javascript
 		var Page = sugar.Component.extend({
-			viewReady: function() {
+			afterRender: function() {
 				var param = {'page': 1, 'limit': 10};
 				sugar.ajax.get('/article/list.php', param, this.dataBack);
 
