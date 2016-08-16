@@ -25,9 +25,9 @@ Consists of two independent parts: **`sugar`** ( *support component system* ) an
 
 * `src/` Source code files:
 
-	* `src/main/` Component system modules, all the module files in this directory are serving for component.js. Components can be included each other, nested and have message communication. [See more API here](http://tangbc.github.io/sugar/sugar.html)
+	* `src/main/` Component system modules, all the module files in this directory are serving for component.js. Components can be included each other, nested and have message communication. [See more API here](https://github.com/tangbc/sugar/wiki/API)
 
-	* **`src/mvvm/`** A simple MVVM library, directive support bind text, two-way data binding, bind attribute, bind event, repeat list and more. **mvvm doesn't rely on sugar, it can be used independently**. [See more API here](http://tangbc.github.io/sugar/mvvm.html)
+	* **`src/mvvm/`** A simple MVVM library, directive support bind text, two-way data binding, bind attribute, bind event, repeat list and more. **mvvm doesn't rely on sugar, it can be used independently**. [See more API here](https://github.com/tangbc/sugar/wiki/MVVM)
 
 
 ## HelloWorld
@@ -37,7 +37,7 @@ var HelloWorld = sugar.Component.extend({
 	init: function (config) {
 		this.cover(config, {
 			'class': 'demo',
-			'html': '<h1>{{ title }}</h1>',
+			'view': '<h1>{{ title }}</h1>',
 			'model': {
 				'title': 'Hello world!'
 			}
@@ -63,6 +63,11 @@ And then the HTML structure will be:
 ```
 
 
+## Document
+
+[Get start and check document on Wiki.](https://github.com/tangbc/sugar/wiki)
+
+
 ## Demos
 
 There are several demos in **`demos/`** directory, check it out and preview them in the following links:
@@ -78,8 +83,8 @@ You can experience or preview `sugar.js` by a *RadioComponent* in [jsfiddle](htt
 ## Usage
 
 * Both `sugar.js` and `mvvm.js` can be used by `CMD`, `AMD` and `<script></script>`.
-	* `sugar (about 38 kb)` http://tangbc.github.io/sugar/dist/sugar.min.js
 	* `mvvm (about 30 kb)` http://tangbc.github.io/sugar/dist/mvvm.min.js
+	* `sugar (about 38 kb)` http://tangbc.github.io/sugar/dist/sugar.min.js
 
 * Browser support: does not support IE8 and below, used `Object.defineProperty`, `Object.create` ...
 
@@ -100,3 +105,8 @@ You can experience or preview `sugar.js` by a *RadioComponent* in [jsfiddle](htt
 4. Add and write test spec, *(in `test/units/specs/`)* then run uint test：**`npm run test`**
 
 5. Generate the test coverage report, jshint check-up and compress source code: **`npm run build`**
+
+
+## License
+
+[MIT License](https://github.com/tangbc/sugar/blob/master/LICENSE)
