@@ -1,7 +1,7 @@
 /*!
- * sugar.js v1.1.5 (c) 2016 TANG
+ * sugar.js v1.1.8 (c) 2016 TANG
  * Released under the MIT license
- * Sun Jul 24 2016 13:29:56 GMT+0800 (CST)
+ * Wed Aug 03 2016 20:12:53 GMT+0800 (CST)
  */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
@@ -674,46 +674,28 @@
 
 	/**
 	 * 字符串首字母大写
+	 * @param   {String}  string
 	 */
-	function ucFirst (str) {
-		return str.charAt(0).toUpperCase() + str.substr(1);
+	function ucFirst (string) {
+		return string.charAt(0).toUpperCase() + string.substr(1);
 	}
 
 	/**
 	 * 根据组件名称获取组件实例
 	 * @param   {String}  name
 	 */
-	function getComponent (name) {
+	function getComponentByName (name) {
 		var component = null;
+
 		util.each(cache, function (instance) {
 			if ((instance._ && instance._.name) === name) {
 				component = instance;
 				return false;
 			}
 		});
+
 		return component;
 	}
-
-
-	/**
-	 * Messager 实现组件消息通信
-	 */
-	function Messager () {
-		/**
-		 * 是否正在发送消息
-		 * @type {Bool}
-		 */
-		this.busy = false;
-
-		/**
-		 * 等待发送的消息队列
-		 * @type {Array}
-		 */
-		this.queue = [];
-	}
-
-	var messager;
-	var mp = Messager.prototype;
 
 	/**
 	 * 创建一条消息
@@ -723,7 +705,7 @@
 	 * @param  {Mix}     param   [<可选>附加消息参数]
 	 * @return {Object}
 	 */
-	mp.createMsg = function (type, sender, name, param) {
+	function createMessage (type, sender, name, param) {
 		return {
 			// 消息类型
 			'type'   : type,
@@ -739,7 +721,7 @@
 			'param'  : param,
 			// 接收消息组件的调用方法 on + 首字母大写
 			'method' : 'on' + ucFirst(name),
-			// 发送完毕后的返回数据
+			// 消息接收者的返回数据
 			'returns': null
 		}
 	}
@@ -750,7 +732,7 @@
 	 * @param  {Mix}     msg       [消息体（内容）]
 	 * @return {Mix}
 	 */
-	mp.trigger = function (receiver, msg) {
+	function triggerReceiver (receiver, msg) {
 		// 接受者消息处理方法
 		var func = receiver[msg.method];
 
@@ -770,38 +752,10 @@
 	 * @param  {Function}  callback  [通知发送者的回调函数]
 	 * @param  {Object}    context   [执行环境]
 	 */
-	mp.notifySender = function (msg, callback, context) {
-		// 通知回调
+	function feedbackSender (msg, callback, context) {
 		if (util.isFunc(callback)) {
 			callback.call(context, msg);
 		}
-
-		// 继续发送队列中未完成的消息
-		if (this.queue.length) {
-			setTimeout(this.sendQueue, 0);
-		} else {
-			this.busy = false;
-		}
-	}
-
-	/**
-	 * 发送消息队列
-	 */
-	mp.sendQueue = function () {
-		var request = messager.queue.shift();
-
-		messager.busy = false;
-
-		if (!request) {
-			return false;
-		}
-
-		// 消息类型
-		var type = request.shift();
-		// 消息方法
-		var func = messager[type];
-
-		func.apply(messager, request);
 	}
 
 	/**
@@ -812,30 +766,19 @@
 	 * @param  {Function}  callback  [<可选>发送完毕的回调函数，可在回调中指定回应数据]
 	 * @param  {Object}    context   [执行环境]
 	 */
-	mp.fire = function (sender, name, param, callback, context) {
-		var this$1 = this;
-
-		var type = 'fire';
-
-		// 是否处于忙碌状态
-		if (this.busy ) {
-			this.queue.push([type, sender, name, param, callback, context]);
-			return;
-		}
-
-		this.busy = true;
-
+	function fire (sender, name, param, callback, context) {
 		// 创建消息
-		var msg = this.createMsg(type, sender, name, param);
+		var msg = createMessage('fire', sender, name, param);
+
 		// 消息接收者，先从上一层模块开始接收
 		var receiver = sender.getParent();
 
 		while (receiver) {
-			var ret = this$1.trigger(receiver, msg);
+			var ret = triggerReceiver(receiver, msg);
 
 			// 接收消息方法返回 false 则不再继续冒泡
 			if (ret === false) {
-				this$1.notifySender(msg, callback, context);
+				feedbackSender(msg, callback, context);
 				return;
 			}
 
@@ -843,33 +786,27 @@
 			receiver = receiver.getParent();
 		}
 
-		this.notifySender(msg, callback, context);
+		feedbackSender(msg, callback, context);
 	}
 
 	/**
 	 * 广播（由上往下）方式发送消息，由父组件实例发出，逐层子组件实例接收
+	 * @param  {Object}    sender    [发送消息的子组件实例]
+	 * @param  {String}    name      [发送的消息名称]
+	 * @param  {Mix}       param     [<可选>附加消息参数]
+	 * @param  {Function}  callback  [<可选>发送完毕的回调函数，可在回调中指定回应数据]
+	 * @param  {Object}    context   [执行环境]
 	 */
-	mp.broadcast = function (sender, name, param, callback, context) {
-		var this$1 = this;
-
-		var type = 'broadcast';
-
-		// 是否处于忙碌状态
-		if (this.busy) {
-			this.queue.push([type, sender, name, param, callback, context]);
-			return;
-		}
-
-		this.busy = true;
-
+	function broadcast (sender, name, param, callback, context) {
 		// 创建消息
-		var msg = this.createMsg(type, sender, name, param);
+		var msg = createMessage('broadcast', sender, name, param);
+
 		// 消息接收者集合，先从自身的子模块开始接收
 		var receivers = sender.getChilds(true).slice(0);
 
 		while (receivers.length) {
 			var receiver = receivers.shift();
-			var ret = this$1.trigger(receiver, msg);
+			var ret = triggerReceiver(receiver, msg);
 
 			// 接收消息方法返回 false 则不再继续广播
 			if (ret !== false) {
@@ -878,7 +815,7 @@
 			}
 		}
 
-		this.notifySender(msg, callback, context);
+		feedbackSender(msg, callback, context);
 	}
 
 	/**
@@ -890,22 +827,12 @@
 	 * @param  {Function}  callback  [<可选>发送完毕的回调函数，可在回调中指定回应数据]
 	 * @param  {Object}    context   [执行环境]
 	 */
-	mp.notify = function (sender, receiver, name, param, callback, context) {
-		var type = 'notify';
-
-		// 是否处于忙碌状态
-		if (this.busy) {
-			this.queue.push([type, sender, receiver, name, param, callback, context]);
-			return;
-		}
-
-		this.busy = true;
-
+	function notify (sender, receiver, name, param, callback, context) {
 		// 找到 receiver，名称可能为 superName.fatherName.childName 的情况
 		if (util.isString(receiver)) {
 			var target;
 			var paths = receiver.split('.');
-			var parent = getComponent(paths.shift());
+			var parent = getComponentByName(paths.shift());
 
 			// 有层级
 			if (paths.length) {
@@ -925,49 +852,41 @@
 			}
 		}
 
-		var msg = this.createMsg(type, sender, name, param);
+		var msg = createMessage('notify', sender, name, param);
 
 		if (!util.isObject(receiver)) {
-			this.notifySender(msg, callback, context);
+			feedbackSender(msg, callback, context);
 			return util.warn('Component: [' + receiver + '] is not exist!');
 		}
 
-		this.trigger(receiver, msg);
+		triggerReceiver(receiver, msg);
 
-		this.notifySender(msg, callback, context);
+		feedbackSender(msg, callback, context);
 	}
 
 	/**
 	 * 全局广播发消息，系统全部组件实例接受
-	 * @param  {String}  name   [发送的消息名称]
-	 * @param  {Mix}     param  [<可选>附加消息参数]
+	 * @param  {String}    name      [发送的消息名称]
+	 * @param  {Mix}       param     [<可选>附加消息参数]
+	 * @param  {Function}  callback  [<可选>发送完毕的回调函数，可在回调中指定回应数据]
+	 * @param  {Object}    context   [执行环境]
 	 */
-	mp.globalCast = function (name, param, callback, context) {
-		var type = 'globalCast';
-
-		// 是否处于忙碌状态
-		if (this.busy) {
-			this.queue.push([type, name, param, callback, context]);
-			return;
-		}
-
-		this.busy = true;
-
-		var msg = this.createMsg(type, '__core__', name, param);
+	function globalCast (name, param, callback, context) {
+		var msg = createMessage('globalCast', '__core__', name, param);
 
 		util.each(cache, function (receiver, index) {
 			if (util.isObject(receiver) && index !== '0') {
-				this.trigger(receiver, msg);
+				triggerReceiver(receiver, msg);
 			}
-		}, this);
+		});
 
-		// 发送完毕回调
-		this.notifySender(msg, callback, context);
+		feedbackSender(msg, callback, context);
 	}
 
-	messager = new Messager();
+	var messager = { fire: fire, broadcast: broadcast, notify: notify, globalCast: globalCast }
 
-	var messager$1 = messager;
+	var childMap = 'map';
+	var childArray = 'array';
 
 	/**
 	 * Module 系统组件模块基础类，实现所有模块的通用方法
@@ -997,15 +916,15 @@
 			var cls = this._;
 
 			// 建立模块关系信息
-			if (!util.hasOwn(cls, 'childArray')) {
+			if (!util.hasOwn(cls, childArray)) {
 				// 子模块实例缓存数组
-				cls['childArray'] = [];
+				cls[childArray] = [];
 				// 子模块命名索引
-				cls['childMap'] = {};
+				cls[childMap] = {};
 			}
 
 			// 判断是否已经创建过
-			if (cls['childMap'][name]) {
+			if (cls[childMap][name]) {
 				return util.warn('Module ['+ name +'] is already exists!');
 			}
 
@@ -1028,8 +947,8 @@
 			cache.length++;
 
 			// 缓存子模块实例
-			cls['childArray'].push(instance);
-			cls['childMap'][name] = instance;
+			cls[childArray].push(instance);
+			cls[childMap][name] = instance;
 
 			// 调用模块实例的 init 方法，传入配置参数和父模块
 			if (util.isFunc(instance.init)) {
@@ -1055,7 +974,7 @@
 		 */
 		getChild: function (name) {
 			var cls = this._;
-			return cls && cls['childMap'] && cls['childMap'][name] || null;
+			return cls && cls[childMap] && cls[childMap][name] || null;
 		},
 
 		/**
@@ -1066,7 +985,7 @@
 		getChilds: function (returnArray) {
 			var cls = this._;
 			returnArray = util.isBool(returnArray) && returnArray;
-			return returnArray ? (cls['childArray'] || []) : (cls['childMap'] || {});
+			return returnArray ? (cls[childArray] || []) : (cls[childMap] || {});
 		},
 
 		/**
@@ -1076,8 +995,8 @@
 		 */
 		_removeChild: function (name) {
 			var cls = this._;
-			var cMap = cls['childMap'] || {};
-			var cArray = cls['childArray'] || [];
+			var cMap = cls[childMap] || {};
+			var cArray = cls[childArray] || [];
 			var child = cMap[name];
 
 			for (var i = 0, len = cArray.length; i < len; i++) {
@@ -1155,7 +1074,7 @@
 				callback = this[callback];
 			}
 
-			messager$1.fire(this, name, param, callback, this);
+			messager.fire(this, name, param, callback, this);
 		},
 
 		/**
@@ -1173,7 +1092,7 @@
 				callback = this[callback];
 			}
 
-			messager$1.broadcast(this, name, param, callback, this);
+			messager.broadcast(this, name, param, callback, this);
 		},
 
 		/**
@@ -1195,7 +1114,7 @@
 				callback = this[callback];
 			}
 
-			messager$1.notify(this, receiver, name, param, callback, this);
+			messager.notify(this, receiver, name, param, callback, this);
 		}
 	});
 
@@ -1228,7 +1147,7 @@
 				param = null;
 			}
 
-			messager$1.globalCast(name, param, callback, context);
+			messager.globalCast(name, param, callback, context);
 		},
 
 		/**
@@ -2322,14 +2241,6 @@
 		this.observer.destroy();
 	}
 
-	// 表达式中允许的关键字
-	var allowKeywords = 'Math.parseInt.parseFloat.Date.this.true.false.null.undefined.Infinity.NaN.isNaN.isFinite.decodeURI.decodeURIComponent.encodeURI.encodeURIComponent';
-	var regAllowKeyword = new RegExp('^(' + allowKeywords.replace(/\./g, '\\b|') + '\\b)');
-
-	// 表达式中禁止的关键字
-	var avoidKeywords = 'var.const.let.if.else.for.in.continue.switch.case.break.default.function.return.do.while.delete.try.catch.throw.finally.with.import.export.instanceof.yield.await';
-	var regAviodKeyword = new RegExp('^(' + avoidKeywords.replace(/\./g, '\\b|') + '\\b)');
-
 	// 匹配常量缓存序号 "1"
 	var regSaveConst = /"(\d+)"/g;
 	// 只含有 true 或 false
@@ -2340,6 +2251,14 @@
 	var regReplaceScope = /[^\w$\.]([A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\])*)/g;
 	// 匹配常规取值: item or item['x'] or item["y"] or item[0]
 	var regNormal = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\]|\[\d+\]|\[[A-Za-z_$][\w$]*\])*$/;
+
+	// 表达式中允许的关键字
+	var allowKeywords = 'Math.parseInt.parseFloat.Date.this.true.false.null.undefined.Infinity.NaN.isNaN.isFinite.decodeURI.decodeURIComponent.encodeURI.encodeURIComponent';
+	var regAllowKeyword = new RegExp('^(' + allowKeywords.replace(/\./g, '\\b|') + '\\b)');
+
+	// 表达式中禁止的关键字
+	var avoidKeywords = 'var.const.let.if.else.for.in.continue.switch.case.break.default.function.return.do.while.delete.try.catch.throw.finally.with.import.export.instanceof.yield.await';
+	var regAviodKeyword = new RegExp('^(' + avoidKeywords.replace(/\./g, '\\b|') + '\\b)');
 
 	/**
 	 * 是否是常规指令表达式
@@ -2457,14 +2376,11 @@
 	 * @param   {String}      expression
 	 */
 	pp.bind = function (fors, node, expression) {
-		// 提取依赖
-		var deps = this.getDeps(fors, expression);
-		// 取值域
-		var scope = this.getScope(fors, expression);
-		// 取值函数
-		var getter = this.getEval(fors, expression);
-		// 别名映射
-		var maps = fors && util.copy(fors.maps);
+		var packet = this.get(fors, expression);
+		var deps = packet.deps;
+		var scope = packet.scope;
+		var getter = packet.getter;
+		var maps = packet.maps;
 
 		// 初始视图更新
 		this.update(node, getter.call(scope, scope));
@@ -2474,6 +2390,22 @@
 			scope = this.updateScope(scope, maps, deps, arguments);
 			this.update(node, getter.call(scope, scope));
 		}, this);
+	}
+
+	/**
+	 * 获取取值信息集合
+	 */
+	pp.get = function (fors, expression) {
+		// 提取依赖
+		var deps = this.getDeps(fors, expression);
+		// 取值域
+		var scope = this.getScope(fors, expression);
+		// 取值函数
+		var getter = this.getEval(fors, expression);
+		// 别名映射
+		var maps = fors && util.copy(fors.maps);
+
+		return { deps: deps, scope: scope, getter: getter, maps: maps };
 	}
 
 	/**
@@ -2722,10 +2654,11 @@
 		// 参数字符串
 		var paramString = info.args;
 
-		// 获取事件函数
-		var deps = this.getDeps(fors, field);
-		var scope = this.getScope(fors, field);
-		var getter = this.getEval(fors, field);
+		var packet = this.get(fors, field);
+		var deps = packet.deps;
+		var scope = packet.scope;
+		var getter = packet.getter;
+
 		var func = getter.call(scope, scope);
 
 		// 绑定事件 & 参数求值
@@ -2775,16 +2708,14 @@
 		// 处理回调参数以及依赖监测
 		var args = [];
 		if (paramString) {
-			// 取值依赖
-			var deps = this.getDeps(fors, paramString);
-			// 别名映射
-			var maps = fors && util.copy(fors.maps);
-			// 取值域
-			var scope = this.getScope(fors, paramString);
+			var packet = this.get(fors, paramString);
+			var deps = packet.deps;
+			var scope = packet.scope;
+			var getter = packet.getter;
+			var maps = packet.maps;
+
 			// 添加别名标记
 			util.defRec(scope, '$event', '$event');
-			// 取值函数
-			var getter = this.getEval(fors, paramString);
 			// 事件参数
 			args = getter.call(scope, scope);
 
@@ -3571,14 +3502,11 @@
 	 * @param   {String}      expression  [指令表达式]
 	 */
 	vclass.parse = function (fors, node, expression) {
-		// 提取依赖
-		var deps = this.getDeps(fors, expression);
-		// 取值域
-		var scope = this.getScope(fors, expression);
-		// 取值函数
-		var getter = this.getEval(fors, expression);
-		// 别名映射
-		var maps = fors && util.copy(fors.maps);
+		var packet = this.get(fors, expression);
+		var deps = packet.deps;
+		var scope = packet.scope;
+		var getter = packet.getter;
+		var maps = packet.maps;
 
 		var value = getter.call(scope, scope);
 
@@ -3655,14 +3583,12 @@
 	 * @param   {String}      expression  [指令表达式]
 	 */
 	vstyle.parse = function (fors, node, expression) {
-		// 提取依赖
-		var deps = this.getDeps(fors, expression);
-		// 取值域
-		var scope = this.getScope(fors, expression);
-		// 取值函数
-		var getter = this.getEval(fors, expression);
-		// 别名映射
-		var maps = fors && util.copy(fors.maps);
+		var packet = this.get(fors, expression);
+		var deps = packet.deps;
+		var scope = packet.scope;
+		var getter = packet.getter;
+		var maps = packet.maps;
+
 		// 取值对象
 		var styleObject = getter.call(scope, scope);
 
@@ -3677,7 +3603,6 @@
 					old[style] = null;
 				});
 				this.updateStyle(node, util.extend(last, old));
-
 			} else {
 				scope = this.updateScope(scope, maps, deps, arguments);
 				this.updateStyle(node, getter.call(scope, scope));
@@ -3762,16 +3687,14 @@
 	 * @param   {String}      jsonString
 	 */
 	vbind.parseJson = function (fors, node, jsonString) {
-		// 提取依赖
-		var deps = this.getDeps(fors, jsonString);
-		// 取值域
-		var scope = this.getScope(fors, jsonString);
-		// 取值函数
-		var getter = this.getEval(fors, jsonString);
+		var packet = this.get(fors, jsonString);
+		var deps = packet.deps;
+		var scope = packet.scope;
+		var getter = packet.getter;
+		var maps = packet.maps;
+
 		// attr 取值
 		var jsonAttr = util.copy(getter.call(scope, scope));
-		// 别名映射
-		var maps = fors && util.copy(fors.maps);
 
 		this.updateJson(node, jsonAttr);
 
@@ -3828,14 +3751,11 @@
 	 * @param   {String}       attr
 	 */
 	vbind.parseAttr = function (fors, node, expression, attr) {
-		// 提取依赖
-		var deps = this.getDeps(fors, expression);
-		// 取值域
-		var scope = this.getScope(fors, expression);
-		// 取值函数
-		var getter = this.getEval(fors, expression);
-		// 别名映射
-		var maps = fors && util.copy(fors.maps);
+		var packet = this.get(fors, expression);
+		var deps = packet.deps;
+		var scope = packet.scope;
+		var getter = packet.getter;
+		var maps = packet.maps;
 
 		this.update(node, attr, getter.call(scope, scope));
 
@@ -3921,12 +3841,10 @@
 
 		util.def(node, '__vmodel', field);
 
-		// 提取依赖
-		var deps = this.getDeps(fors, field);
-		// 取值域
-		var scope = this.getScope(fors, field);
-		// 取值函数
-		var getter = this.getEval(fors, field);
+		var packet = this.get(fors, field);
+		var deps = packet.deps;
+		var scope = packet.scope;
+		var getter = packet.getter;
 
 		// v-model 只支持静态指令
 		var paths = util.makePaths(deps.acc[0] || deps.dep[0]);
@@ -4584,8 +4502,6 @@
 	 * @return {Mix}             [返回读取的配置值]
 	 */
 	function config (data, name, value) {
-		var udf, set = (value !== udf);
-
 		if (name) {
 			var ns = name.split('/');
 
@@ -4598,7 +4514,7 @@
 			return data;
 		}
 
-		if (set) {
+		if (typeof value !== 'undefined') {
 			data[name] = value;
 			return true;
 		} else {
@@ -4612,7 +4528,7 @@
 	 */
 	var Component = Module.extend({
 		/**
-		 * init 组件初始化方法
+		 * init 组件初始化
 		 * @param  {Object}  config  [组件参数配置]
 		 * @param  {Object}  parent  [父组件对象]
 		 */
@@ -4620,6 +4536,8 @@
 			this._config = this.cover(config, {
 				// 组件目标容器
 				'target'  : null,
+				// 组件是否替换目标容器
+				'replace' : false,
 				// dom 元素的标签
 				'tag'     : 'div',
 				// 元素的 class
@@ -4629,19 +4547,19 @@
 				// 元素的 attr
 				'attr'    : null,
 				// 视图布局内容
-				'html'    : '',
+				'view'    : '',
 				// 静态模板 uri
 				'template': '',
 				// 模板拉取请求参数
 				'tplParam': null,
 				// mvvm 数据模型对象
 				'model'   : null,
+				// 子组件注册对象
+				'childs'  : null,
 				// 视图渲染完成后的回调函数
-				'cbRender': 'viewReady'
+				'cbRender': 'afterRender'
 			});
 
-			// 通用 dom 处理方法
-			this.$ = dom;
 			// 组件元素
 			this.el = null;
 			// mvvm 实例
@@ -4670,16 +4588,16 @@
 			var uri = c.template;
 
 			ajax.load(uri, c.tplParam, function (err, data) {
-				var html;
+				var view;
 
 				if (err) {
-					html = err.status + ': ' + uri;
+					view = err.status + ': ' + uri;
 					util.warn(err);
 				} else {
-					html = data.result;
+					view = data.result;
 				}
 
-				this.setConfig('html', html);
+				this.setConfig('view', view);
 				this._render();
 			}, this);
 		},
@@ -4728,9 +4646,9 @@
 				}, this);
 			}
 
-			// 添加页面布局
-			if (c.html) {
-				this.el.appendChild(util.stringToFragment(c.html));
+			// 添加页面视图布局
+			if (c.view) {
+				this.el.appendChild(util.stringToFragment(c.view));
 			}
 
 			// 初始化 mvvm 对象
@@ -4739,15 +4657,71 @@
 				this.vm = new MVVM(this.el, model, this);
 			}
 
+			// 创建子组件
+			util.each(c.childs, this._buildBatch, this);
+
 			// 追加到目标容器
 			if (isAppend) {
-				target.appendChild(this.el);
+				if (c.replace) {
+					target.parentNode.replaceChild(this.el, target);
+				} else {
+					target.appendChild(this.el);
+				}
 			}
 
 			// 组件视图渲染完成回调方法
 			var cb = this[c.cbRender];
 			if (util.isFunc(cb)) {
 				cb.call(this);
+			}
+		},
+
+		/**
+		 * 批量创建子组件
+		 * @param   {Function}  ChildComp  [子组件类]
+		 * @param   {String}    symbol     [子组件名称]
+		 */
+		_buildBatch: function (ChildComp, symbol) {
+			var this$1 = this;
+
+			var target = this.queryAll(symbol.toLowerCase());
+
+			if (!target.length) {
+				target = this.queryAll('[name='+ symbol +']');
+			}
+
+			switch (target.length) {
+				case 0:
+					util.warn('Cannot find target element for sub component ['+ symbol +']');
+					break;
+				case 1:
+					this._createChild(target[0], symbol, ChildComp);
+					break;
+				default: {
+					for (var i = 0; i < target.length; i++) {
+						this$1._createChild(target[i], symbol + i, ChildComp);
+					}
+				}
+			}
+		},
+
+		/**
+		 * 创建一个子组件实例
+		 * @param   {DOMElement}  target
+		 * @param   {String}      childName
+		 * @param   {Function}    ChildComp
+		 */
+		_createChild: function (target, childName, ChildComp) {
+			// 默认全部替换子组件标记
+			var childConfig = { target: target, 'replace': true };
+
+			// 直接传入子组件
+			if (util.isFunc(ChildComp)) {
+				this.create(childName, ChildComp, childConfig);
+			}
+			// 传子组件和其配置参数 [component, config]
+			else if (util.isArray(ChildComp)) {
+				this.create(childName, ChildComp[0], util.extend(ChildComp[1], childConfig));
 			}
 		},
 
@@ -4759,7 +4733,7 @@
 		 */
 		cover: function (child, parent) {
 			if (!parent) {
-				util.warn('Failed to cover config, 2 argumenst required');
+				util.warn('Failed to cover config, 2 arguments required');
 			}
 			return util.extend(true, {}, parent, child);
 		},
@@ -4837,7 +4811,7 @@
 				parent.removeChild(el);
 			}
 
-			this.$ = el = vm = null;
+			el = vm = null;
 		}
 	});
 
