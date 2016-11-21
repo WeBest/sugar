@@ -1,5 +1,5 @@
-import util from '../util';
 import cache from './cache';
+import { each, isFunc, isObject, isString, warn } from '../util';
 
 /**
  * 字符串首字母大写
@@ -14,10 +14,10 @@ function ucFirst (string) {
  * @param   {String}  name
  */
 function getComponentByName (name) {
-	var component = null;
+	let component = null;
 
-	util.each(cache, function (instance) {
-		if ((instance._ && instance._.name) === name) {
+	each(cache, function (instance) {
+		if ((instance.__rd__ && instance.__rd__.name) === name) {
 			component = instance;
 			return false;
 		}
@@ -37,21 +37,21 @@ function getComponentByName (name) {
 function createMessage (type, sender, name, param) {
 	return {
 		// 消息类型
-		'type'   : type,
+		type: type,
 		// 消息发起组件实例
-		'from'   : sender,
+		from: sender,
 		// 消息目标组件实例
-		'to'     : null,
+		to: null,
 		// 消息被传递的次数
-		'count'  : 0,
+		count: 0,
 		// 消息名称
-		'name'   : name,
+		name: name,
 		// 消息参数
-		'param'  : param,
+		param: param,
 		// 接收消息组件的调用方法 on + 首字母大写
-		'method' : 'on' + ucFirst(name),
+		method: 'on' + ucFirst(name),
 		// 消息接收者的返回数据
-		'returns': null
+		returns: null
 	}
 }
 
@@ -63,10 +63,10 @@ function createMessage (type, sender, name, param) {
  */
 function triggerReceiver (receiver, msg) {
 	// 接受者消息处理方法
-	var func = receiver[msg.method];
+	let func = receiver[msg.method];
 
 	// 触发接收者的消息处理方法
-	if (util.isFunc(func)) {
+	if (isFunc(func)) {
 		// 标识消息的发送目标
 		msg.to = receiver;
 		// 发送次数
@@ -82,7 +82,7 @@ function triggerReceiver (receiver, msg) {
  * @param  {Object}    context   [执行环境]
  */
 function feedbackSender (msg, callback, context) {
-	if (util.isFunc(callback)) {
+	if (isFunc(callback)) {
 		callback.call(context, msg);
 	}
 }
@@ -97,10 +97,10 @@ function feedbackSender (msg, callback, context) {
  */
 function fire (sender, name, param, callback, context) {
 	// 创建消息
-	var msg = createMessage('fire', sender, name, param);
+	let msg = createMessage('fire', sender, name, param);
 
 	// 消息接收者，先从上一层模块开始接收
-	var receiver = sender.getParent();
+	let receiver = sender.getParent();
 
 	while (receiver) {
 		let ret = triggerReceiver(receiver, msg);
@@ -128,10 +128,10 @@ function fire (sender, name, param, callback, context) {
  */
 function broadcast (sender, name, param, callback, context) {
 	// 创建消息
-	var msg = createMessage('broadcast', sender, name, param);
+	let msg = createMessage('broadcast', sender, name, param);
 
 	// 消息接收者集合，先从自身的子模块开始接收
-	var receivers = sender.getChilds(true).slice(0);
+	let receivers = sender.getChilds(true).slice(0);
 
 	while (receivers.length) {
 		let receiver = receivers.shift();
@@ -158,14 +158,14 @@ function broadcast (sender, name, param, callback, context) {
  */
 function notify (sender, receiver, name, param, callback, context) {
 	// 找到 receiver，名称可能为 superName.fatherName.childName 的情况
-	if (util.isString(receiver)) {
+	if (isString(receiver)) {
 		let target;
 		let paths = receiver.split('.');
 		let parent = getComponentByName(paths.shift());
 
 		// 有层级
 		if (paths.length) {
-			util.each(paths, function (comp) {
+			each(paths, function (comp) {
 				target = parent.getChild(comp);
 				parent = target;
 				return null;
@@ -176,16 +176,16 @@ function notify (sender, receiver, name, param, callback, context) {
 
 		parent = null;
 
-		if (util.isObject(target)) {
+		if (isObject(target)) {
 			receiver = target;
 		}
 	}
 
-	var msg = createMessage('notify', sender, name, param);
+	let msg = createMessage('notify', sender, name, param);
 
-	if (!util.isObject(receiver)) {
+	if (!isObject(receiver)) {
 		feedbackSender(msg, callback, context);
-		return util.warn('Component: [' + receiver + '] is not exist!');
+		return warn('Component: [' + receiver + '] is not exist!');
 	}
 
 	triggerReceiver(receiver, msg);
@@ -201,10 +201,10 @@ function notify (sender, receiver, name, param, callback, context) {
  * @param  {Object}    context   [执行环境]
  */
 function globalCast (name, param, callback, context) {
-	var msg = createMessage('globalCast', '__core__', name, param);
+	let msg = createMessage('globalCast', '__core__', name, param);
 
-	util.each(cache, function (receiver, index) {
-		if (util.isObject(receiver) && index !== '0') {
+	each(cache, function (receiver, index) {
+		if (isObject(receiver) && index !== '0') {
 			triggerReceiver(receiver, msg);
 		}
 	});

@@ -1,7 +1,7 @@
-var MVVM = require('mvvm').default;
+import MVVM from 'mvvm';
 
-describe("v-if >", function () {
-	var element;
+describe('v-if >', function () {
+	let element;
 
 	beforeEach(function () {
 		element = document.createElement('div');
@@ -16,11 +16,14 @@ describe("v-if >", function () {
 	it('normal render first', function () {
 		element.innerHTML = '<div id="test1" v-if="render"><b>123</b></div>';
 
-		var vm = new MVVM(element, {
-			'render': true
+		let vm = new MVVM({
+			view: element,
+			model: {
+				render: true
+			}
 		});
-		var data = vm.get();
-		var div = element.querySelector('#test1');
+		let data = vm.$data;
+		let div = element.querySelector('#test1');
 
 		expect(div.innerHTML).toBe('<b>123</b>');
 
@@ -35,11 +38,14 @@ describe("v-if >", function () {
 	it('normal no-render first', function () {
 		element.innerHTML = '<div id="test2" v-if="render"><b>123</b></div>';
 
-		var vm = new MVVM(element, {
-			'render': false
+		let vm = new MVVM({
+			view: element,
+			model: {
+				render: false
+			}
 		});
-		var data = vm.get();
-		var div = element.querySelector('#test2');
+		let data = vm.$data;
+		let div = element.querySelector('#test2');
 
 		expect(div.innerHTML).toBe('');
 
@@ -57,12 +63,15 @@ describe("v-if >", function () {
 				'<p>--{{ text }}--</p>' +
 			'</div>'
 
-		var vm = new MVVM(element, {
-			'render': true,
-			'text'  : 'aaa'
+		let vm = new MVVM({
+			view: element,
+			model: {
+				render: true,
+				text: 'aaa'
+			}
 		});
-		var data = vm.get();
-		var div = element.querySelector('#test3');
+		let data = vm.$data;
+		let div = element.querySelector('#test3');
 
 		expect(div.innerHTML).toBe('<p>--aaa--</p>');
 
@@ -87,12 +96,15 @@ describe("v-if >", function () {
 				'<p>--{{ text }}--</p>' +
 			'</div>'
 
-		var vm = new MVVM(element, {
-			'render': false,
-			'text'  : 'aaa'
+		let vm = new MVVM({
+			view: element,
+			model: {
+				render: false,
+				text: 'aaa'
+			}
 		});
-		var data = vm.get();
-		var div = element.querySelector('#test4');
+		let data = vm.$data;
+		let div = element.querySelector('#test4');
 
 		expect(div.innerHTML).toBe('');
 
@@ -123,12 +135,15 @@ describe("v-if >", function () {
 				'<b>Not OK</b>' +
 			'</div>'
 
-		var vm = new MVVM(element, {
-			'ok': true
+		let vm = new MVVM({
+			view: element,
+			model: {
+				ok: true
+			}
 		});
-		var data = vm.get();
-		var ok = element.querySelector('#ok');
-		var notok = element.querySelector('#notok');
+		let data = vm.$data;
+		let ok = element.querySelector('#ok');
+		let notok = element.querySelector('#notok');
 
 		expect(ok.innerHTML).toBe('<i>OK</i>');
 		expect(notok.innerHTML).toBe('');
@@ -140,5 +155,316 @@ describe("v-if >", function () {
 		data.ok = true;
 		expect(ok.innerHTML).toBe('<i>OK</i>');
 		expect(notok.innerHTML).toBe('');
+	});
+
+
+	it('nest v-if render all first', function () {
+		element.innerHTML =
+			'<div v-if="out">' +
+				'<a v-if="inA">{{ a }}</a>' +
+				'<b v-if="inB">{{ b }}</b>' +
+			'</div>'
+
+		let vm = new MVVM({
+			view: element,
+			model: {
+				out: true,
+				inA: true,
+				inB: true,
+				a: 'aaa',
+				b: 'bbb'
+			}
+		});
+
+		let data = vm.$data;
+		let div = element.firstChild;
+
+		// initial render result
+		expect(div.textContent).toBe('aaabbb');
+
+		// clear out
+		data.out = false;
+		expect(div.textContent).toBe('');
+
+		// render out
+		data.out = true;
+		expect(div.textContent).toBe('aaabbb');
+
+		// clear a
+		data.inA = false;
+		expect(div.textContent).toBe('bbb');
+		// change b to test data reactive
+		data.b = 'BBB';
+		expect(div.textContent).toBe('BBB');
+
+		// ignore a and clear out
+		data.out = false;
+		expect(div.textContent).toBe('');
+
+		// render out, and a still be no-render
+		data.out = true;
+		expect(div.textContent).toBe('BBB');
+
+		// now, change a and b, then render a
+		data.a = 'AAA';
+		data.b = '3B';
+		data.inA = true;
+		expect(div.textContent).toBe('AAA3B');
+
+		// clear all of them
+		data.inA = false;
+		data.inB = false;
+		data.out = false;
+		expect(div.textContent).toBe('');
+
+		// although render a and b, but out not render
+		data.inA = true;
+		data.inB = true;
+		expect(div.textContent).toBe('');
+
+		// until out is true only a & b should be rendered
+		data.out = true;
+		expect(div.textContent).toBe('AAA3B');
+	});
+
+
+	it('nest v-if no-render all first', function () {
+		element.innerHTML =
+			'<div v-if="out">' +
+				'<a v-if="inA">{{ a }}</a>' +
+				'<b v-if="inB">{{ b }}</b>' +
+			'</div>'
+
+		let vm = new MVVM({
+			view: element,
+			model: {
+				out: false,
+				inA: false,
+				inB: false,
+				a: 'aaa',
+				b: 'bbb'
+			}
+		});
+
+		let data = vm.$data;
+		let div = element.firstChild;
+
+		// initial render result
+		expect(div.textContent).toBe('');
+
+		// render out
+		data.out = true;
+		expect(div.textContent).toBe('');
+
+		// render a
+		data.inA = true;
+		expect(div.textContent).toBe('aaa');
+		// change a to test data reactive
+		data.a = 'AAA';
+		expect(div.textContent).toBe('AAA');
+
+		// ignore b and clear out
+		data.out = false;
+		expect(div.textContent).toBe('');
+
+		// render out, and b still be no-render
+		data.out = true;
+		expect(div.textContent).toBe('AAA');
+
+		// now, change a and b, then render a
+		data.a = 'aaa';
+		data.b = 'BBB';
+		data.inA = false;
+		data.inB = true;
+		expect(div.textContent).toBe('BBB');
+
+		// clear all of them
+		data.inA = false;
+		data.inB = false;
+		data.out = false;
+		expect(div.textContent).toBe('');
+
+		// although render a and b, but out not render
+		data.inA = true;
+		data.inB = true;
+		expect(div.textContent).toBe('');
+
+		// until out is true only a & b should be rendered
+		data.out = true;
+		expect(div.textContent).toBe('aaaBBB');
+	});
+
+
+	it('render content contains v-for and render first', function () {
+		element.innerHTML =
+			'<div v-if="show">' +
+				'<h1>{{ title }}-</h1>' +
+				'<ul>' +
+					'<li v-for="item in items">' +
+						'{{ $index }}.{{ item }}_' +
+					'</li>' +
+				'</ul>' +
+			'</div>'
+
+		let vm = new MVVM({
+			view: element,
+			model: {
+				show: true,
+				title: 'xxdk',
+				items: ['a', 'b', 'c']
+			}
+		});
+
+		let data = vm.$data;
+		let div = element.firstChild;
+
+		expect(div.textContent).toBe('xxdk-0.a_1.b_2.c_');
+
+		// change for array
+		data.items.shift();
+		expect(div.textContent).toBe('xxdk-0.b_1.c_');
+		data.items.unshift('A');
+		expect(div.textContent).toBe('xxdk-0.A_1.b_2.c_');
+
+		// clear div
+		data.show = false;
+		expect(div.textContent).toBe('');
+
+		// change for data, but will not has appearance
+		data.title = 'txgc';
+		data.items.push('D');
+		expect(div.textContent).toBe('');
+
+		// render div, and will refresh appearance
+		data.show = true;
+		expect(div.textContent).toBe('txgc-0.A_1.b_2.c_3.D_');
+	});
+
+
+	it('render content contains v-for and no-render first', function () {
+		element.innerHTML =
+			'<div v-if="show">' +
+				'<h1>{{ title }}-</h1>' +
+				'<ul>' +
+					'<li v-for="item in items">' +
+						'{{ $index }}.{{ item }}_' +
+					'</li>' +
+				'</ul>' +
+			'</div>'
+
+		let vm = new MVVM({
+			view: element,
+			model: {
+				show: false,
+				title: 'xxdk',
+				items: ['a', 'b', 'c']
+			}
+		});
+
+		let data = vm.$data;
+		let div = element.firstChild;
+
+		expect(div.textContent).toBe('');
+
+		data.show = true;
+		expect(div.textContent).toBe('xxdk-0.a_1.b_2.c_');
+
+		// change for array
+		data.items.shift();
+		expect(div.textContent).toBe('xxdk-0.b_1.c_');
+		data.items.unshift('A');
+		expect(div.textContent).toBe('xxdk-0.A_1.b_2.c_');
+
+		// clear div
+		data.show = false;
+		expect(div.textContent).toBe('');
+
+		// change for data, but will not has appearance
+		data.title = 'txgc';
+		data.items.push('D');
+		expect(div.textContent).toBe('');
+
+		// render div, and will refresh appearance
+		data.show = true;
+		expect(div.textContent).toBe('txgc-0.A_1.b_2.c_3.D_');
+	});
+
+
+	it('with equal level v-for and render first', function () {
+		element.innerHTML =
+			'<ul>' +
+				'<li v-for="item in items" v-if="show">' +
+					'{{ item }}' +
+				'</li>' +
+			'</ul>'
+
+		let vm = new MVVM({
+			view: element,
+			model: {
+				show: true,
+				items: ['a', 'b', 'c']
+			}
+		});
+
+		let data = vm.$data;
+		let ul = element.firstChild;
+
+		expect(ul.textContent).toBe('abc');
+
+		data.show = false;
+		expect(ul.textContent).toBe('');
+
+		// change data
+		data.items.push('d');
+		data.items.$set(1, 'B');
+		expect(data.items).toEqual(['a', 'B', 'c', 'd']);
+		expect(ul.textContent).toBe('');
+
+		data.show = true;
+		expect(ul.textContent).toBe('aBcd');
+
+		data.items.$set(1, 'b');
+		expect(ul.textContent).toBe('abcd');
+	});
+
+
+	it('with equal level v-for and no render first', function () {
+		element.innerHTML =
+			'<ul>' +
+				'<li v-for="item in items" v-if="show">' +
+					'{{ item }}' +
+				'</li>' +
+			'</ul>'
+
+		let vm = new MVVM({
+			view: element,
+			model: {
+				show: false,
+				items: ['a', 'b', 'c']
+			}
+		});
+
+		let data = vm.$data;
+		let ul = element.firstChild;
+
+		expect(ul.textContent).toBe('');
+
+		data.show = true;
+		expect(ul.textContent).toBe('abc');
+
+		// change data
+		data.items.push('d');
+		data.items.$set(1, 'B');
+		expect(data.items).toEqual(['a', 'B', 'c', 'd']);
+		expect(ul.textContent).toBe('aBcd');
+
+		data.show = false;
+		expect(ul.textContent).toBe('');
+
+		data.items.$set(1, 'b');
+		expect(ul.textContent).toBe('');
+
+		data.show = true;
+		expect(ul.textContent).toBe('abcd');
 	});
 });

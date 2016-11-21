@@ -1,19 +1,9 @@
-var MVVM = require('mvvm').default;
+import MVVM from 'mvvm';
+import * as util from 'src/util';
+import { triggerEvent } from '../../../test_util';
 
-function triggerEvent (target, evt, process) {
-	var e = document.createEvent('HTMLEvents');
-	e.initEvent(evt, true, true);
-
-	if (process) {
-		process(e);
-	}
-
-	target.dispatchEvent(e);
-}
-
-
-describe("v-on >", function () {
-	var element;
+describe('v-on >', function () {
+	let element;
 
 	beforeEach(function () {
 		element = document.createElement('div');
@@ -24,19 +14,35 @@ describe("v-on >", function () {
 		document.body.removeChild(element);
 	});
 
+	it('invalid listener', function () {
+		element.innerHTML = '<span v-on:click="test"></span>';
+
+		new MVVM({
+			view: element,
+			model: {
+				test: '123'
+			}
+		});
+
+		expect(util.warn).toHaveBeenCalledWith('Directive [v-on:click] must be a type of Function');
+	});
+
 
 	it('normal', function () {
-		var count = 0;
-		var cb = function () {
+		let count = 0;
+		let cb = function () {
 			count++;
 		}
 
 		element.innerHTML = '<span id="el" v-on:click="test"></span>';
 
-		var vm = new MVVM(element, {
-			'test': cb
+		new MVVM({
+			view: element,
+			model: {
+				test: cb
+			}
 		});
-		var el = element.querySelector('#el');
+		let el = element.querySelector('#el');
 
 		triggerEvent(el, 'click');
 		expect(count).toBe(1);
@@ -54,17 +60,20 @@ describe("v-on >", function () {
 				'<span id="inner" v-on:click="inner"></span>' +
 			'</div>'
 
-		var outerCount = 0, innerCount = 0;
-		var vm = new MVVM(element, {
-			'outer': function () {
-				outerCount++;
-			},
-			'inner': function () {
-				innerCount++;
+		let outerCount = 0, innerCount = 0;
+		new MVVM({
+			view: element,
+			model: {
+				outer: function () {
+					outerCount++;
+				},
+				inner: function () {
+					innerCount++;
+				}
 			}
 		});
-		var outer = element.querySelector('#outer');
-		var inner = element.querySelector('#inner');
+		let outer = element.querySelector('#outer');
+		let inner = element.querySelector('#inner');
 
 		triggerEvent(outer, 'click');
 		expect(outerCount).toBe(1);
@@ -91,17 +100,20 @@ describe("v-on >", function () {
 				'<span id="inner" v-on:click.stop="inner"></span>' +
 			'</div>'
 
-		var outerCount = 0, innerCount = 0;
-		var vm = new MVVM(element, {
-			'outer': function () {
-				outerCount++;
-			},
-			'inner': function () {
-				innerCount++;
+		let outerCount = 0, innerCount = 0;
+		new MVVM({
+			view: element,
+			model: {
+				outer: function () {
+					outerCount++;
+				},
+				inner: function () {
+					innerCount++;
+				}
 			}
 		});
-		var outer = element.querySelector('#outer');
-		var inner = element.querySelector('#inner');
+		let outer = element.querySelector('#outer');
+		let inner = element.querySelector('#inner');
 
 		triggerEvent(outer, 'click');
 		expect(outerCount).toBe(1);
@@ -132,17 +144,20 @@ describe("v-on >", function () {
 				'<span id="inner" v-on:click="inner"></span>' +
 			'</div>'
 
-		var outerCount = 0, innerCount = 0;
-		var vm = new MVVM(element, {
-			'outer': function () {
-				outerCount++;
-			},
-			'inner': function () {
-				innerCount++;
+		let outerCount = 0, innerCount = 0;
+		new MVVM({
+			view: element,
+			model: {
+				outer: function () {
+					outerCount++;
+				},
+				inner: function () {
+					innerCount++;
+				}
 			}
 		});
-		var outer = element.querySelector('#outer');
-		var inner = element.querySelector('#inner');
+		let outer = element.querySelector('#outer');
+		let inner = element.querySelector('#inner');
 
 		triggerEvent(outer, 'click');
 		expect(outerCount).toBe(1);
@@ -157,14 +172,17 @@ describe("v-on >", function () {
 	it('a default situation', function () {
 		element.innerHTML = '<a id="el" href="#abc" v-on:click="test"></a>';
 
-		var hasPrevent;
-		var vm = new MVVM(element, {
-			'test': function (e) {
-				// this feature is base on greater than or equal to ie9
-				hasPrevent = e.defaultPrevented;
+		let hasPrevent;
+		new MVVM({
+			view: element,
+			model: {
+				test: function (e) {
+					// this feature is base on greater than or equal to ie9
+					hasPrevent = e.defaultPrevented;
+				}
 			}
 		});
-		var el = element.querySelector('#el');
+		let el = element.querySelector('#el');
 
 		triggerEvent(el, 'click');
 		expect(hasPrevent).toBeFalsy();
@@ -178,14 +196,17 @@ describe("v-on >", function () {
 	it('use .prevent to preventDefault', function () {
 		element.innerHTML = '<a id="el" href="#abc" v-on:click.prevent="test"></a>';
 
-		var hasPrevent;
-		var vm = new MVVM(element, {
-			'test': function (e) {
-				hasPrevent = e.defaultPrevented;
+		let hasPrevent;
+		new MVVM({
+			view: element,
+			model: {
+				test: function (e) {
+					hasPrevent = e.defaultPrevented;
+				}
 			}
 		});
-		var hash = window.location.hash;
-		var el = element.querySelector('#el');
+		let hash = window.location.hash;
+		let el = element.querySelector('#el');
 
 		triggerEvent(el, 'click');
 		expect(hasPrevent).toBeTruthy();
@@ -196,13 +217,16 @@ describe("v-on >", function () {
 	it('setup keyCode', function () {
 		element.innerHTML = '<input id="el" type="text" v-on:keyup.13="test">';
 
-		var isEnter13 = false;
-		var vm = new MVVM(element, {
-			'test': function (e) {
-				isEnter13 = e.keyCode === 13;
+		let isEnter13 = false;
+		new MVVM({
+			view: element,
+			model: {
+				test: function (e) {
+					isEnter13 = e.keyCode === 13;
+				}
 			}
 		});
-		var el = element.querySelector('#el');
+		let el = element.querySelector('#el');
 
 		triggerEvent(el, 'keyup', function (e) {
 			e.keyCode = 11;
@@ -224,13 +248,16 @@ describe("v-on >", function () {
 	it('passing multi arguments', function () {
 		element.innerHTML = '<div id="el" v-on:mouseenter="test(123, \'sugar\', $event)"></div>';
 
-		var args;
-		var vm = new MVVM(element, {
-			'test': function () {
-				args = Array.prototype.slice.call(arguments);
+		let args;
+		new MVVM({
+			view: element,
+			model: {
+				test: function () {
+					args = Array.prototype.slice.call(arguments);
+				}
 			}
 		});
-		var el = element.querySelector('#el');
+		let el = element.querySelector('#el');
 
 		triggerEvent(el, 'mouseenter');
 		expect(args && args.length).toBe(3);
@@ -243,13 +270,16 @@ describe("v-on >", function () {
 	it('change event callback', function () {
 		element.innerHTML = '<div id="el" v-on:click="test"></div>';
 
-		var flag;
-		var vm = new MVVM(element, {
-			'test': function () {
-				flag = 'first callback';
+		let flag;
+		let vm = new MVVM({
+			view: element,
+			model: {
+				test: function () {
+					flag = 'first callback';
+				}
 			}
 		});
-		var el = element.querySelector('#el');
+		let el = element.querySelector('#el');
 
 		triggerEvent(el, 'click');
 		expect(flag).toBe('first callback');
@@ -266,14 +296,17 @@ describe("v-on >", function () {
 	it('multi events', function () {
 		element.innerHTML = '<div id="el" v-on="{click: clickTest, mouseout: mouseoutTest(123, $event)}"></div>';
 
-		var args, storeArgs = function () {
+		let args, storeArgs = function () {
 			args = Array.prototype.slice.call(arguments);
 		}
-		var vm = new MVVM(element, {
-			'clickTest': storeArgs,
-			'mouseoutTest': storeArgs
+		new MVVM({
+			view: element,
+			model: {
+				clickTest: storeArgs,
+				mouseoutTest: storeArgs
+			}
 		});
-		var el = element.querySelector('#el');
+		let el = element.querySelector('#el');
 
 		triggerEvent(el, 'click');
 		expect(args.length).toBe(1);
@@ -286,17 +319,20 @@ describe("v-on >", function () {
 	});
 
 
-	it('change arguments with variable', function () {
+	it('change arguments with letiable', function () {
 		element.innerHTML = '<input id="el" v-on:focus="test(text, \'xxdk\')"/>';
 
-		var args;
-		var vm = new MVVM(element, {
-			'text': 'aaa',
-			'test': function (txt, num) {
-				args = Array.prototype.slice.call(arguments);
+		let args;
+		let vm = new MVVM({
+			view: element,
+			model: {
+				text: 'aaa',
+				test: function (txt, num) {
+					args = Array.prototype.slice.call(arguments);
+				}
 			}
 		});
-		var el = element.querySelector('#el');
+		let el = element.querySelector('#el');
 
 		triggerEvent(el, 'focus');
 		expect(args.length).toBe(2);
@@ -320,20 +356,23 @@ describe("v-on >", function () {
 				'</li>' +
 			'</ul>'
 
-		var index, evt;
-		var vm = new MVVM(element, {
-			'items': [
-				'aaa',
-				'bbb',
-				'ccc'
-			],
-			'test': function (i, e) {
-				index = i;
-				evt = e;
+		let index, evt;
+		let vm = new MVVM({
+			view: element,
+			model: {
+				items: [
+					'aaa',
+					'bbb',
+					'ccc'
+				],
+				test: function (i, e) {
+					index = i;
+					evt = e;
+				}
 			}
 		});
-		var data = vm.get();
-		var els = element.querySelectorAll('.el');
+		let data = vm.$data;
+		let els = element.querySelectorAll('.el');
 
 		triggerEvent(els[0], 'click');
 		expect(index).toBe(0);
@@ -345,7 +384,9 @@ describe("v-on >", function () {
 
 		// change array data
 		expect(els[1].textContent).toBe('bbb');
-		data.items[1] = 'BBB';
+		data.items.$set(1, 'BBB');
+		// $set will recover original DOM
+		els = element.querySelectorAll('.el');
 		triggerEvent(els[1], 'click');
 		expect(index).toBe(1);
 		expect(evt.target.textContent).toBe('BBB');
@@ -364,5 +405,135 @@ describe("v-on >", function () {
 		triggerEvent(els[1], 'click');
 		expect(index).toBe(1);
 		expect(evt.target.textContent).toBe('ccc');
+	});
+
+
+	it('use $remove event in v-for', function () {
+		element.innerHTML =
+			'<ul>' +
+				'<li v-for="item in items" v-on:dblclick="$remove">' +
+					'{{ $index }}{{ item }}_' +
+				'</li>' +
+			'</ul>'
+
+		let vm = new MVVM({
+			view: element,
+			model: {
+				items: ['a', 'b', 'c']
+			}
+		});
+
+		let data = vm.$data;
+		let ul = element.firstChild;
+
+		expect(ul.textContent).toBe('0a_1b_2c_');
+
+		let lis = ul.childNodes;
+		triggerEvent(lis[1], 'dblclick');
+		expect(ul.textContent).toBe('0a_1c_');
+
+		lis = ul.childNodes;
+		triggerEvent(lis[0], 'dblclick');
+		expect(ul.textContent).toBe('0c_');
+
+		lis = ul.childNodes;
+		triggerEvent(lis[0], 'dblclick');
+		expect(ul.textContent).toBe('');
+
+		// push new data
+		data.items.push('b');
+		data.items.unshift('a');
+		data.items.push('c');
+		expect(ul.textContent).toBe('0a_1b_2c_');
+
+		// come again above action
+		lis = ul.childNodes;
+		triggerEvent(lis[1], 'dblclick');
+		expect(ul.textContent).toBe('0a_1c_');
+
+		lis = ul.childNodes;
+		triggerEvent(lis[0], 'dblclick');
+		expect(ul.textContent).toBe('0c_');
+
+		lis = ul.childNodes;
+		triggerEvent(lis[0], 'dblclick');
+		expect(ul.textContent).toBe('');
+
+		// cover new data
+		data.items = ['n', 'b', 'a'];
+		expect(ul.textContent).toBe('0n_1b_2a_');
+
+		// come again above action
+		lis = ul.childNodes;
+		triggerEvent(lis[1], 'dblclick');
+		expect(ul.textContent).toBe('0n_1a_');
+
+		lis = ul.childNodes;
+		triggerEvent(lis[0], 'dblclick');
+		expect(ul.textContent).toBe('0a_');
+
+		lis = ul.childNodes;
+		triggerEvent(lis[0], 'dblclick');
+		expect(ul.textContent).toBe('');
+	});
+
+
+	it('use $remove outside v-for', function () {
+		element.innerHTML = '<div v-on="{click: $remove}"></div>';
+
+		new MVVM({
+			view: element,
+			model: {}
+		});
+
+		expect(util.warn).toHaveBeenCalledWith('The specify event $remove must be used in v-for scope');
+	});
+
+
+	it('use .one to handler event only first trigger', function () {
+		element.innerHTML =
+			'<a id="test" v-on:click="test"></a>' +
+			'<a id="one" v-on:click.one="testOne"></a>'
+
+		let testCount = 0;
+		let oneCount = 0;
+
+		new MVVM({
+			view: element,
+			model: {},
+			methods: {
+				test: function () {
+					testCount++;
+				},
+				testOne: function () {
+					oneCount++;
+				}
+			}
+		});
+
+		let testEl = element.querySelector('#test');
+		let oneEl = element.querySelector('#one');
+
+		triggerEvent(testEl, 'click');
+		expect(testCount).toBe(1);
+
+		triggerEvent(testEl, 'click'); // 2
+		triggerEvent(testEl, 'click'); // 3
+		triggerEvent(testEl, 'click'); // 4
+		expect(testCount).toBe(4);
+
+		// when use .one dress, event just trigger one, then auto unbind
+		expect(oneCount).toBe(0);
+		triggerEvent(oneEl, 'click');
+		expect(oneCount).toBe(1);
+
+		triggerEvent(oneEl, 'click');
+		expect(oneCount).toBe(1);
+
+		triggerEvent(oneEl, 'click');
+		triggerEvent(oneEl, 'click');
+		triggerEvent(oneEl, 'click');
+		triggerEvent(oneEl, 'click');
+		expect(oneCount).toBe(1);
 	});
 });

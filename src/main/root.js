@@ -1,4 +1,8 @@
-import util from '../util';
+import {
+	each,
+	extend,
+	isFunc
+} from '../util';
 
 const regSuper = /\b\.Super\b/;
 const toString = Function.prototype.toString;
@@ -10,7 +14,10 @@ const toString = Function.prototype.toString;
  * @return  {Mix}
  */
 function bindSuper (Super, method) {
-	if (util.isFunc(method) && regSuper.test(toString.call(method))) {
+	if (
+		isFunc(method) &&
+		regSuper.test(toString.call(method))
+	) {
 		return function () {
 			this.Super = Super;
 			method.apply(this, arguments);
@@ -22,22 +29,23 @@ function bindSuper (Super, method) {
 
 /*
  * Root 实现类式继承
- * @param  {Object}    proto  [生成类的新原型属性或方法]
- * @return {Function}  Class  [继承后的类]
+ * @param   {Object}    proto  [生成类的属性或方法]
+ * @return  {Function}  Class  [继承后的类]
  */
 function Root () {}
 Root.extend = function (proto) {
-	var parent = this.prototype;
+	let parent = this.prototype;
 
 	/**
-	 * 子类对父类的调用
-	 * @param {String}  method  [调用的父类方法]
-	 * @param {Array}   args    [调用参数]
+	 * 子类对父类方法的调用
+	 * @param  {String}  method     [父类方法]
+	 * @param  {Object}  oldConfig  [原配置参数]
+	 * @param  {Object}  newConfig  [新配置参数]
 	 */
-	function Super (method, args) {
-		var func = parent[method];
-		if (util.isFunc(func)) {
-			func.apply(this, args);
+	function Super (method, oldConfig, newConfig) {
+		let func = parent[method];
+		if (isFunc(func)) {
+			func.call(this, extend(true, newConfig, oldConfig));
 		}
 	}
 
@@ -45,9 +53,9 @@ Root.extend = function (proto) {
 	 * 返回(继承后)的类
 	 */
 	function Class () {}
-	var classProto = Class.prototype = Object.create(parent);
+	let classProto = Class.prototype = Object.create(parent);
 
-	util.each(proto, function (value, property) {
+	each(proto, function (value, property) {
 		classProto[property] = bindSuper(Super, value);
 	});
 

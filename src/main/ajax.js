@@ -1,4 +1,4 @@
-import util from '../util';
+import { isFunc, each } from '../util';
 
 /**
  * 执行一个 http 请求
@@ -11,16 +11,16 @@ import util from '../util';
  * @return  {Object}
  */
 function execute (dataType, url, method, param, callback, context) {
-	var ct = context || this;
-	var xhr = new XMLHttpRequest();
+	let ct = context || this;
+	let xhr = new XMLHttpRequest();
 
 	// 初始化请求
 	xhr.open(method, url, true);
 
 	// 状态变化回调
 	xhr.onreadystatechange = function () {
-		var status = xhr.status;
-		var result = null, error = null;
+		let status = xhr.status;
+		let result = null, error = null;
 
 		// 请求完成
 		if (xhr.readyState === 4) {
@@ -37,14 +37,14 @@ function execute (dataType, url, method, param, callback, context) {
 			// 请求响应成功
 			if (status === 200) {
 				result = {
-					'success': true,
-					'result' : response
+					success: true,
+					result: response
 				}
 			} else {
 				error = {
-					'result' : null,
-					'success': false,
-					'status' : status
+					result: null,
+					success: false,
+					status: status
 				}
 			}
 
@@ -65,9 +65,9 @@ function execute (dataType, url, method, param, callback, context) {
  * get 请求
  */
 function get (url, param, callback, context, dataType) {
-	var params = [];
+	let params = [];
 
-	if (util.isFunc(param)) {
+	if (isFunc(param)) {
 		dataType = context;
 		context = callback;
 		callback = param;
@@ -75,7 +75,7 @@ function get (url, param, callback, context, dataType) {
 	}
 
 	// 格式化参数对象
-	util.each(param, function (val, key) {
+	each(param, function (val, key) {
 		params.push(key + '=' + encodeURIComponent(val));
 	});
 
@@ -100,4 +100,14 @@ function load (url, param, callback, context) {
 	return get(url, param, callback, context, 'text');
 }
 
-export default { get, post, load }
+/**
+ * 挂载到 Sugar 上的 Ajax 工具方法
+ * @type  {Object}
+ */
+let ajax = Object.create(null);
+
+ajax.get = get;
+ajax.post = post;
+ajax.load = load;
+
+export default ajax;

@@ -1,85 +1,88 @@
-import dom from '../dom';
 import ajax from './ajax';
-import util from '../util';
 import Module from './module';
 import MVVM from '../mvvm/index';
-import eventer from '../eventer';
+import DOM, { addClass, setAttr, addEvent, removeEvent } from '../dom';
+import {
+	each,
+	warn,
+	config,
+	isFunc,
+	extend,
+	isArray,
+	isObject,
+	isString,
+	clearObject,
+	createElement,
+	stringToFragment
+} from '../util';
 
 /**
- * 设置/读取配置对象
- * @param  {Object}   data   [配置对象]
- * @param  {String}   name   [配置名称, 支持/分隔层次]
- * @param  {Mix}      value  [不传为读取配置信息]
- * @return {Mix}             [返回读取的配置值]
+ * 事件 id 唯一计数
+ * @type  {Number}
  */
-function config (data, name, value) {
-	if (name) {
-		let ns = name.split('/');
-
-		while (ns.length > 1 && util.hasOwn(data, ns[0])) {
-			data = data[ns.shift()];
-		}
-
-		name = ns[0];
-	} else {
-		return data;
-	}
-
-	if (typeof value !== 'undefined') {
-		data[name] = value;
-		return true;
-	} else {
-		return data[name];
-	}
-}
+let componentEventGuid = 1000;
+let identifier = '__eventid__';
 
 
 /**
  * Component 基础视图组件
  */
-var Component = Module.extend({
+let Component = Module.extend({
 	/**
 	 * init 组件初始化
 	 * @param  {Object}  config  [组件参数配置]
 	 * @param  {Object}  parent  [父组件对象]
 	 */
-	init: function (config, parent) {
-		this._config = this.cover(config, {
-			// 组件目标容器
-			'target'  : null,
-			// 组件是否替换目标容器
-			'replace' : false,
-			// dom 元素的标签
-			'tag'     : 'div',
-			// 元素的 class
-			'class'   : '',
-			// 元素的 css
-			'css'     : null,
-			// 元素的 attr
-			'attr'    : null,
-			// 视图布局内容
-			'view'    : '',
-			// 静态模板 uri
-			'template': '',
-			// 模板拉取请求参数
-			'tplParam': null,
-			// mvvm 数据模型对象
-			'model'   : null,
-			// 子组件注册对象
-			'childs'  : null,
+	init: function (config) {
+		this.__config__ = extend(true, {
+			/********* 组件位置定义 *********/
+			target: null, // 组件目标容器 <DOM|CssStringSelector>
+			replace: false, // 组件是否替换目标容器 <Boolean>
+
+			/********* 组件属性定义 *********/
+			tag: 'div', // dom 元素的标签
+			css: null, // 元素的 css <Object>
+			attr: null, // 元素的 attr <Object>
+			class: '', // 元素的 class <String>
+
+			/********* 组件布局定义 *********/
+			view: '', // 视图布局内容 <HTMLString>
+			template: '', // 静态模板 uri <UrlString>
+			tplParam: null, // 模板拉取请求参数 <Object>
+
+			/********* 组件 MVVM 定义 *********/
+			model: null,  // mvvm 数据模型对象 <Object>
+			methods: null,  // 事件声明函数对象  <Object>
+			watches: null,  // 批量 watch 数据对象  <Object>
+			watchAll: null,  // model 变化统一回调函数  <Function>
+			computed: null,  // mvvm 计算属性对象 <Object>
+			customs: null,  // 自定义指令刷新函数对象 <Object>
+			hooks: null,  // DOM 增删钩子函数对象 <Object>
+			lazy: false, // 是否手动编译根元素 <Boolean>
+
+			/********* 声明式嵌套子组件定义 *********/
+			childs: null, // <Object>
+
 			// 视图渲染完成后的回调函数
-			'cbRender': 'afterRender'
-		});
+			cbRender: 'afterRender'
+		}, config);
 
 		// 组件元素
 		this.el = null;
 		// mvvm 实例
 		this.vm = null;
-		// 组件是否已经创建完成
-		this._ready = false;
+		// 通用 DOM 处理方法
+		this.$ = new DOM();
+
+		// (Private) 组件初始显示状态
+		this.__visible__ = '';
+		// (Private) 组件是否已经创建完成
+		this.__ready__ = false;
+		// (Private) DOM 事件绑定记录
+		this.__listeners__ = {};
 
 		// 调用渲染前函数
-		if (util.isFunc(this.beforeRender)) {
+		if (isFunc(this.beforeRender)) {
 			this.beforeRender();
 		}
 
@@ -92,18 +95,18 @@ var Component = Module.extend({
 	},
 
 	/**
-	 * 加载模板布局文件
+	 * (Private) 加载模板布局文件
 	 */
 	_loadTemplate: function () {
-		var c = this.getConfig();
-		var uri = c.template;
+		let c = this.getConfig();
+		let uri = c.template;
 
 		ajax.load(uri, c.tplParam, function (err, data) {
-			var view;
+			let view;
 
 			if (err) {
 				view = err.status + ': ' + uri;
-				util.warn(err);
+				warn(err);
 			} else {
 				view = data.result;
 			}
@@ -114,62 +117,78 @@ var Component = Module.extend({
 	},
 
 	/**
-	 * 渲染组件视图、初始化配置
+	 * (Private) 渲染组件视图、初始化配置
 	 */
 	_render: function () {
 		// 判断是否已创建过
-		if (this._ready) {
+		if (this.__ready__) {
 			return this;
 		}
 
-		this._ready = true;
+		this.__ready__ = true;
 
-		var c = this.getConfig();
+		let c = this.getConfig();
 
-		var target = c.target;
-		var isAppend = target instanceof HTMLElement;
+		let target = c.target;
+		let isAppend = target instanceof HTMLElement;
 
+		// 组件 el 创建
 		if (isAppend) {
-			this.el = util.createElement(c.tag);
+			this.el = createElement(c.tag);
 		} else {
 			this.el = document.querySelector(target);
 		}
 
 		// 添加 class
-		var cls = c.class;
-		if (cls && util.isString(cls)) {
-			util.each(cls.split(' '), function (classname) {
-				dom.addClass(this.el, classname);
+		let cls = c.class;
+		if (cls && isString(cls)) {
+			each(cls.split(' '), function (classname) {
+				addClass(this.el, classname);
 			}, this);
 		}
 
 		// 添加 css
-		if (util.isObject(c.css)) {
-			util.each(c.css, function (value, property) {
+		if (isObject(c.css)) {
+			each(c.css, function (value, property) {
 				this.el.style[property] = value;
 			}, this);
 		}
 
-		// 添加attr
-		if (util.isObject(c.attr)) {
-			util.each(c.attr, function (value, name) {
-				dom.setAttr(this.el, name, value);
+		// 添加 attr
+		if (isObject(c.attr)) {
+			each(c.attr, function (value, name) {
+				setAttr(this.el, name, value);
 			}, this);
 		}
 
 		// 添加页面视图布局
 		if (c.view) {
-			this.el.appendChild(util.stringToFragment(c.view));
+			this.el.appendChild(stringToFragment(c.view));
 		}
 
 		// 初始化 mvvm 对象
-		var model = c.model;
-		if (util.isObject(model)) {
-			this.vm = new MVVM(this.el, model, this);
+		let model = c.model;
+		if (isObject(model)) {
+			this.vm = new MVVM({
+				view: this.el,
+				model: model,
+				methods: c.methods,
+				watches: c.watches,
+				watchAll: c.watchAll,
+				computed: c.computed,
+				customs: c.customs,
+				hooks: c.hooks,
+				context: this,
+				lazy: c.lazy
+			});
 		}
 
+		// 组件初始显示状态
+		let display = this.el.style.display;
+		this.__visible__ = display === 'none' ? '' : display;
+
 		// 创建子组件
-		util.each(c.childs, this._buildBatch, this);
+		each(c.childs, this._buildBatchChilds, this);
 
 		// 追加到目标容器
 		if (isAppend) {
@@ -181,19 +200,19 @@ var Component = Module.extend({
 		}
 
 		// 组件视图渲染完成回调方法
-		var cb = this[c.cbRender];
-		if (util.isFunc(cb)) {
+		let cb = this[c.cbRender];
+		if (isFunc(cb)) {
 			cb.call(this);
 		}
 	},
 
 	/**
-	 * 批量创建子组件
+	 * (Private) 批量创建子组件
 	 * @param   {Function}  ChildComp  [子组件类]
 	 * @param   {String}    symbol     [子组件名称]
 	 */
-	_buildBatch: function (ChildComp, symbol) {
-		var target = this.queryAll(symbol.toLowerCase());
+	_buildBatchChilds: function (ChildComp, symbol) {
+		let target = this.queryAll(symbol.toLowerCase());
 
 		if (!target.length) {
 			target = this.queryAll('[name='+ symbol +']');
@@ -201,7 +220,7 @@ var Component = Module.extend({
 
 		switch (target.length) {
 			case 0:
-				util.warn('Cannot find target element for sub component ['+ symbol +']');
+				warn('Cannot find target element for sub component ['+ symbol +']');
 				break;
 			case 1:
 				this._createChild(target[0], symbol, ChildComp);
@@ -215,100 +234,32 @@ var Component = Module.extend({
 	},
 
 	/**
-	 * 创建一个子组件实例
+	 * (Private) 创建一个子组件实例
 	 * @param   {DOMElement}  target
 	 * @param   {String}      childName
 	 * @param   {Function}    ChildComp
 	 */
 	_createChild: function (target, childName, ChildComp) {
 		// 默认全部替换子组件标记
-		var childConfig = { target, 'replace': true };
+		let childConfig = { target, 'replace': true };
 
 		// 直接传入子组件
-		if (util.isFunc(ChildComp)) {
+		if (isFunc(ChildComp)) {
 			this.create(childName, ChildComp, childConfig);
 		}
 		// 传子组件和其配置参数 [component, config]
-		else if (util.isArray(ChildComp)) {
-			this.create(childName, ChildComp[0], util.extend(ChildComp[1], childConfig));
+		else if (isArray(ChildComp)) {
+			this.create(childName, ChildComp[0], extend(ChildComp[1], childConfig));
 		}
 	},
 
 	/**
-	 * 组件配置参数合并、覆盖
-	 * @param  {Object}  child   [子类组件配置参数]
-	 * @param  {Object}  parent  [父类组件配置参数]
-	 * @return {Object}          [合并后的配置参数]
+	 * (Private) 组件销毁后的回调函数
 	 */
-	cover: function (child, parent) {
-		if (!parent) {
-			util.warn('Failed to cover config, 2 arguments required');
-		}
-		return util.extend(true, {}, parent, child);
-	},
-
-	/**
-	 * 获取组件配置参数
-	 * @param  {String}  name  [参数字段名称，支持/层级]
-	 */
-	getConfig: function (name) {
-		return config(this._config, name);
-	},
-
-	/**
-	 * 设置组件配置参数
-	 * @param {String}  name   [配置字段名]
-	 * @param {Mix}     value  [值]
-	 */
-	setConfig: function (name, value) {
-		return config(this._config, name, value);
-	},
-
-	/**
-	 * 返回当前 dom 中第一个匹配特定选择器的元素
-	 * @param  {String}     selector  [子元素选择器]
-	 * @return {DOMObject}
-	 */
-	query: function (selector) {
-		return this.el.querySelector(selector);
-	},
-
-	/**
-	 * 返回当前 dom 中匹配一个特定选择器的所有的元素
-	 * @param  {String}    selectors  [子元素选择器]
-	 * @return {NodeList}
-	 */
-	queryAll: function (selectors) {
-		return this.el.querySelectorAll(selectors);
-	},
-
-	/**
-	 * 元素添加绑定事件
-	 */
-	bind: function (node, evt, callback, capture) {
-		if (util.isString(callback)) {
-			callback = this[callback];
-		}
-		return eventer.add(node, evt, callback, capture, this);
-	},
-
-	/**
-	 * 元素解除绑定事件
-	 */
-	unbind: function (node, evt, callback, capture) {
-		if (util.isString(callback)) {
-			callback = this[callback];
-		}
-		return eventer.remove(node, evt, callback, capture);
-	},
-
-	/**
-	 * 组件销毁后的回调函数
-	 */
-	afterDestroy: function () {
-		var vm = this.vm;
-		var el = this.el;
-		var parent = el.parentNode;
+	_afterDestroy: function () {
+		let vm = this.vm;
+		let el = this.el;
+		let parent = el.parentNode;
 
 		// 销毁 mvvm 实例
 		if (vm) {
@@ -320,7 +271,98 @@ var Component = Module.extend({
 			parent.removeChild(el);
 		}
 
-		el = vm = null;
+		this.el = this.vm = null;
+		clearObject(this.__listeners__);
+	},
+
+	/**
+	 * 获取组件配置参数
+	 * @param  {String}  name  [参数字段名称，支持/层级]
+	 */
+	getConfig: function (name) {
+		return config(this.__config__, name);
+	},
+
+	/**
+	 * 设置组件配置参数
+	 * @param {String}  name   [配置字段名]
+	 * @param {Mix}     value  [值]
+	 */
+	setConfig: function (name, value) {
+		return config(this.__config__, name, value);
+	},
+
+	/**
+	 * 返回当前组件中第一个匹配特定选择器的元素
+	 * @param  {String}     selector  [子元素选择器]
+	 * @return {DOMObject}
+	 */
+	query: function (selector) {
+		return this.el.querySelector(selector);
+	},
+
+	/**
+	 * 返回当前组件中匹配一个特定选择器的所有的元素
+	 * @param  {String}    selectors  [子元素选择器]
+	 * @return {NodeList}
+	 */
+	queryAll: function (selectors) {
+		return this.el.querySelectorAll(selectors);
+	},
+
+	/**
+	 * 显示组件
+	 */
+	show: function () {
+		this.el.style.display = this.__visible__;
+		return this;
+	},
+
+	/**
+	 * 隐藏组件
+	 */
+	hide: function () {
+		this.el.style.display = 'none';
+		return this;
+	},
+
+	/**
+	 * 元素添加绑定事件
+	 */
+	on: function (node, type, callback, capture) {
+		let self = this;
+		let guid = componentEventGuid++;
+
+		if (isString(callback)) {
+			callback = this[callback];
+		}
+
+		callback[identifier] = guid;
+		let eventAgent = function (e) {
+			callback.call(self, e);
+		}
+
+		this.__listeners__[guid] = eventAgent;
+		addEvent(node, type, eventAgent, capture);
+
+		return this;
+	},
+
+	/**
+	 * 元素解除绑定事件
+	 */
+	off: function (node, type, callback, capture) {
+		if (isString(callback)) {
+			callback = this[callback];
+		}
+
+		let guid = callback[identifier];
+		let eventAgent = this.__listeners__[guid];
+		if (eventAgent) {
+			removeEvent(node, type, eventAgent, capture);
+		}
+
+		return this;
 	}
 });
 
