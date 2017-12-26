@@ -1,6 +1,6 @@
-import Watcher from './watcher';
-import Compiler from './compiler';
-import { each, copy, isFunc, isArray, isString, isObject, config } from '../util';
+import Watcher from './watcher'
+import Compiler from './compiler'
+import { each, copy, isFunc, isArray, isString, isObject, config } from '../util'
 
 /**
  * MVVM 构造函数入口
@@ -17,43 +17,49 @@ import { each, copy, isFunc, isArray, isString, isObject, config } from '../util
  * @param  {Boolean}   - lazy      [<可选>是否手动编译根元素]
  */
 export default function MVVM (option) {
-	let context = option.context || option.model;
+    let context = option.context || option.model
 
-	// 将事件函数 this 指向调用者
-	each(option.model, function (value, key) {
-		if (isFunc(value)) {
-			option.model[key] = value.bind(context);
-		}
-	});
+    // 将事件函数 this 指向调用者
+    each(option.model, function (value, key) {
+        if (isFunc(value)) {
+            option.model[key] = value.bind(context)
+        }
+    })
 
-	// 整合事件函数声明对象
-	each(option.methods, function (callback, func) {
-		option.model[func] = callback.bind(context);
-	});
+    // 整合事件函数声明对象
+    each(option.methods, function (callback, func) {
+        option.model[func] = callback.bind(context)
+    })
 
-	// 事件或 watch 函数作用域
-	this.__ct__ = context;
-	// 初始数据备份，用于 reset
-	this.__bk__ = copy(option.model);
-	// 内部 ViewModel 实例
-	this.__vm__ = new Compiler(option);
+    // 事件或 watch 函数作用域
+    this.__ct__ = context
+    // 初始数据备份，用于 reset
+    this.__bk__ = copy(option.model)
+    // 内部 ViewModel 实例
+    this.__vm__ = new Compiler(option)
 
-	// 数据模型
-	this.$data = this.__vm__.$data;
-	// DOM 注册索引
-	this.$els = this.__vm__.$regEles;
+    // 数据模型对象
+    this.$data = this.__vm__.$data
+    // DOM 注册索引
+    this.$els = this.__vm__.$els
 
-	// 批量 watch
-	this._watchBatch(option.watches);
+    // 批量 watch
+    each(option.watches, function (callback, expression) {
+        if (isFunc(callback)) {
+            this.watch(expression, callback, false)
+        } else if (isObject(callback)) {
+            this.watch(expression, callback.handler, callback.deep)
+        }
+    }, this)
 }
 
-let mvp = MVVM.prototype;
+let mvp = MVVM.prototype
 
 /**
  * 手动挂载/编译根元素
  */
 mvp.mount = function () {
-	this.__vm__.mount();
+    this.__vm__.mount()
 }
 
 /**
@@ -64,8 +70,8 @@ mvp.mount = function () {
  * @return  {Mix}
  */
 mvp.get = function (key) {
-	let data = this.$data;
-	return isString(key) ? config(data, key) : data;
+    let data = this.$data
+    return isString(key) ? config(data, key) : data
 }
 
 /**
@@ -76,7 +82,7 @@ mvp.get = function (key) {
  * @return  {Mix}
  */
 mvp.getCopy = function (key) {
-	return copy(this.get(key));
+    return copy(this.get(key))
 }
 
 /**
@@ -85,18 +91,18 @@ mvp.getCopy = function (key) {
  * @param  {Mix}     value  [值]
  */
 mvp.set = function (key, value) {
-	let data = this.$data;
+    let data = this.$data
 
-	// 设置单个
-	if (isString(key)) {
-		config(data, key, value);
-	}
-	// 批量设置
-	else if (isObject(key)) {
-		each(key, function (v, k) {
-			config(data, k, v);
-		});
-	}
+    // 设置单个
+    if (isString(key)) {
+        config(data, key, value)
+    }
+    // 批量设置
+    else if (isObject(key)) {
+        each(key, function (v, k) {
+            config(data, k, v)
+        })
+    }
 }
 
 /**
@@ -104,25 +110,25 @@ mvp.set = function (key, value) {
  * @param  {Array|String}  key  [<可选>数据模型字段，或字段数组，空则重置所有]
  */
 mvp.reset = function (key) {
-	let data = this.$data;
-	let backup = copy(this.__bk__);
+    let data = this.$data
+    let backup = copy(this.__bk__)
 
-	// 重置单个
-	if (isString(key)) {
-		data[key] = backup[key];
-	}
-	// 重置多个
-	else if (isArray(key)) {
-		each(key, function (v) {
-			data[v] = backup[v];
-		});
-	}
-	// 重置所有
-	else {
-		each(data, function (v, k) {
-			data[k] = backup[k];
-		});
-	}
+    // 重置单个
+    if (isString(key)) {
+        data[key] = backup[key]
+    }
+    // 重置多个
+    else if (isArray(key)) {
+        each(key, function (v) {
+            data[v] = backup[v]
+        })
+    }
+    // 重置所有
+    else {
+        each(data, function (v, k) {
+            data[k] = backup[k]
+        })
+    }
 }
 
 /**
@@ -132,30 +138,16 @@ mvp.reset = function (key) {
  * @param  {Boolean}   deep        [<可选>深层依赖监测]
  */
 mvp.watch = function (expression, callback, deep) {
-	return new Watcher(this, {
-		deep: deep,
-		expression: expression
-	}, callback.bind(this.__ct__));
-}
-
-/**
- * 批量 watch 配置的监测模型
- * @param  {Object}  watches
- */
-mvp._watchBatch = function (watches) {
-	each(watches, function (callback, expression) {
-		if (isFunc(callback)) {
-			this.watch(expression, callback, false);
-		} else if (isObject(callback)) {
-			this.watch(expression, callback.handler, callback.deep);
-		}
-	}, this);
+    return new Watcher(this, {
+        deep: deep,
+        expression: expression
+    }, callback.bind(this.__ct__))
 }
 
 /**
  * 销毁函数
  */
 mvp.destroy = function () {
-	this.__vm__.destroy();
-	this.__vm__ = this.__ct__ = this.__bk__ = this.$data = this.$els = null;
+    this.__vm__.destroy()
+    this.__vm__ = this.__ct__ = this.__bk__ = this.$data = this.$els = null
 }

@@ -1,21 +1,20 @@
-import { empty } from '../../dom';
-import Parser, { linkParser } from '../parser';
-import { stringToFragment, _toString } from '../../util';
+import { _toString } from '../../util'
+import Parser, { linkParser } from '../parser'
 
 /**
  * v-html 指令解析模块
  */
 export function VHtml () {
-	Parser.apply(this, arguments);
+    Parser.apply(this, arguments)
 }
 
-let vhtml = linkParser(VHtml);
+let vhtml = linkParser(VHtml)
 
 /**
  * 解析 v-html 指令
  */
 vhtml.parse = function () {
-	this.bind();
+    this.bind()
 }
 
 /**
@@ -23,5 +22,5 @@ vhtml.parse = function () {
  * @param  {String}  value
  */
 vhtml.update = function (value) {
-	empty(this.el).appendChild(stringToFragment(_toString(value)));
+    this.el.innerHTML = _toString(value)
 }

@@ -1,8 +1,8 @@
-import { def } from '../../util';
-import { hasAttr } from '../../dom';
-import Parser, { linkParser } from '../parser';
+import { def } from '../../util'
+import { hasAttr } from '../../dom'
+import Parser, { linkParser } from '../parser'
 
-const visibleDisplay = '__visible__';
+const visibleDisplay = '__visible__'
 
 /**
  * 缓存节点行内样式显示值
@@ -11,8 +11,8 @@ const visibleDisplay = '__visible__';
  * @param  {Element}  node
  */
 function setVisibleDisplay (node) {
-	let display = node.style.display;
-	def(node, visibleDisplay, display === 'none' ? '' : display);
+    let display = node.style.display
+    def(node, visibleDisplay, display === 'none' ? '' : display)
 }
 
 /**
@@ -21,35 +21,34 @@ function setVisibleDisplay (node) {
  * @param  {String}   display
  */
 function setStyleDisplay (node, display) {
-	node.style.display = display;
+    node.style.display = display
 }
-
 
 /**
  * v-show 指令解析模块
  */
 export function VShow () {
-	Parser.apply(this, arguments);
+    Parser.apply(this, arguments)
 }
 
-let vshow = linkParser(VShow);
+let vshow = linkParser(VShow)
 
 /**
  * 解析 v-show 指令
  */
 vshow.parse = function () {
-	let el = this.el;
+    let el = this.el
 
-	setVisibleDisplay(el);
+    setVisibleDisplay(el)
 
-	// else 片段
-	let elseEl = el.nextElementSibling;
-	if (elseEl && hasAttr(elseEl, 'v-else')) {
-		this.elseEl = elseEl;
-		setVisibleDisplay(elseEl);
-	}
+    // else 片段
+    let elseEl = el.nextElementSibling
+    if (elseEl && hasAttr(elseEl, 'v-else')) {
+        this.elseEl = elseEl
+        setVisibleDisplay(elseEl)
+    }
 
-	this.bind();
+    this.bind()
 }
 
 /**
@@ -57,12 +56,12 @@ vshow.parse = function () {
  * @param  {Boolean}  isShow
  */
 vshow.update = function (isShow) {
-	let el = this.el;
-	let elseEl = this.elseEl;
+    let el = this.el
+    let elseEl = this.elseEl
 
-	setStyleDisplay(el, isShow ? el[visibleDisplay] : 'none');
+    setStyleDisplay(el, isShow ? el[visibleDisplay] : 'none')
 
-	if (elseEl) {
-		setStyleDisplay(elseEl, !isShow ? elseEl[visibleDisplay] : 'none');
-	}
+    if (elseEl) {
+        setStyleDisplay(elseEl, !isShow ? elseEl[visibleDisplay] : 'none')
+    }
 }
